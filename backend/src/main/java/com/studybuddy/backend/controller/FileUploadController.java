@@ -10,27 +10,29 @@ import java.io.IOException;
 
 @RestController
 @RequestMapping("/api")
-@CrossOrigin(origins = "http://localhost:3000") // allow React dev server
+@CrossOrigin(origins = "http://localhost:3000") // allow React frontend
 public class FileUploadController {
 
     @PostMapping("/upload")
     public ResponseEntity<String> uploadFile(@RequestParam("file") MultipartFile file) {
         try {
-            String textContent = "";
+            String textContent;
 
-            // If file is PDF
             if (file.getOriginalFilename() != null && file.getOriginalFilename().endsWith(".pdf")) {
+                // Extract text from PDF
                 try (PDDocument document = PDDocument.load(file.getInputStream())) {
                     PDFTextStripper pdfStripper = new PDFTextStripper();
                     textContent = pdfStripper.getText(document);
                 }
             } else {
-                // Otherwise treat as plain text
+                // Assume plain text file
                 textContent = new String(file.getBytes());
             }
 
-            // Limit output so frontend doesn’t freeze
-            String preview = textContent.length() > 1000 ? textContent.substring(0, 1000) : textContent;
+            // Return only a preview so frontend isn’t overwhelmed
+            String preview = textContent.length() > 1000
+                    ? textContent.substring(0, 1000)
+                    : textContent;
 
             return ResponseEntity.ok(preview);
 

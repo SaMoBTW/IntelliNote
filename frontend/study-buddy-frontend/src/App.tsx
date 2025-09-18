@@ -1,31 +1,54 @@
 import React, { useState } from "react";
 
-function App() {
-    const [text, setText] = useState("");
+export default function App() {
+  const [text, setText] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
-    const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!e.target.files) return;
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.length) return;
 
-        const formData = new FormData();
-        formData.append("file", e.target.files[0]);
+    setLoading(true);
+    setErr(null);
 
-        const res = await fetch("http://localhost:8080/api/upload", {
-            method: "POST",
-            body: formData,
-        });
+    try {
+      const form = new FormData();
+      form.append("file", e.target.files[0]); // key must match @RequestParam("file")
 
-        const data = await res.text(); // backend sends plain string
-        setText(data);
-    };
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: form, // let the browser set multipart boundary
+      });
 
-    return (
-        <div style={{ padding: "20px" }}>
-            <h1>AI Study Buddy</h1>
-            <input type="file" onChange={handleUpload} />
-            <h2>Extracted Text:</h2>
-            <pre>{text}</pre>
-        </div>
-    );
+      const body = await res.text();
+      if (!res.ok) throw new Error(body || `HTTP ${res.status}`);
+
+      setText(body);
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : typeof err === "string"
+          ? err
+          : "Upload failed";
+      setErr(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ padding: 24, fontFamily: "system-ui, sans-serif" }}>
+      <h1>AI Study Buddy</h1>
+      <input type="file" onChange={handleUpload} />
+      {loading && <p>Uploading…</p>}
+      {err && <p style={{ color: "crimson" }}>{err}</p>}
+      {text && (
+        <>
+          <h2>Extracted Text</h2>
+          <pre style={{ whiteSpace: "pre-wrap" }}>{text}</pre>
+        </>
+      )}
+    </div>
+  );
 }
-
-export default App;
