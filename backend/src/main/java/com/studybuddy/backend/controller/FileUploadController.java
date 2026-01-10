@@ -1,7 +1,8 @@
 package com.studybuddy.backend.controller;
 
-import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.text.PDFTextStripper;
+import com.studybuddy.backend.dto.DocumentAnalysisResponse;
+import com.studybuddy.backend.service.DocumentProcessingService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -13,31 +14,33 @@ import java.io.IOException;
 @CrossOrigin(origins = "http://localhost:3000") // allow React frontend
 public class FileUploadController {
 
+    private final DocumentProcessingService documentProcessingService;
+
+    // We "Inject" the service here. Spring automatically finds the Service we
+    // created and passes it in.
+    @Autowired
+    public FileUploadController(DocumentProcessingService documentProcessingService) {
+        this.documentProcessingService = documentProcessingService;
+    }
+
     @PostMapping("/upload")
-    public ResponseEntity<String> uploadFile(@RequestParam("file") MultipartFile file) {
+    public ResponseEntity<DocumentAnalysisResponse> uploadFile(@RequestParam("file") MultipartFile file) {
         try {
-            String textContent;
+            // We delegate the hard work to the service
+            DocumentAnalysisResponse response = documentProcessingService.processUploadedFile(file);
 
-            if (file.getOriginalFilename() != null && file.getOriginalFilename().endsWith(".pdf")) {
-                // Extract text from PDF
-                try (PDDocument document = PDDocument.load(file.getInputStream())) {
-                    PDFTextStripper pdfStripper = new PDFTextStripper();
-                    textContent = pdfStripper.getText(document);
-                }
-            } else {
-                // Assume plain text file
-                textContent = new String(file.getBytes());
-            }
-
-            // Return only a preview so frontend isn’t overwhelmed
-            String preview = textContent.length() > 1000
-                    ? textContent.substring(0, 1000)
-                    : textContent;
-
-            return ResponseEntity.ok(preview);
+            // Return the structured object with a 200 OK status
+            return ResponseEntity.ok(response);
 
         } catch (IOException e) {
-            return ResponseEntity.badRequest().body("Error reading file: " + e.getMessage());
+            // If something goes wrong, we return a 400 Bad Request with a comprehensive
+            // message
+            DocumentAnalysisResponse errorResponse = new DocumentAnalysisResponse(
+                    file.getOriginalFilename(),
+                    "",
+                    0,
+                    "Error reading file: " + e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
         }
     }
 }
