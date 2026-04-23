@@ -5,3 +5,4 @@ dist
 .env.local
 .env.*.local
 *.md
+!/README.md
